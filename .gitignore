@@ -1,0 +1,38 @@
+Byte-compiled / optimized / DLL files
+
+pycache/
+*.py[cod]
+*$py.class
+
+Keras/TensorFlow model file (We use LFS for this)
+
+*.h5
+
+*.keras
+
+OS-specific files
+
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+Environment
+
+venv/
+.env
+
+--- SIH Project Specific ---
+
+IGNORE THE DATASET FOLDERS
+
+dataset/
+train/
+valid/
+test/
+
+Temporary training files
+
+temp_train/
+temp_val/
