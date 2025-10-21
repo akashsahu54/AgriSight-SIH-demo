@@ -167,3 +167,6 @@ print("-" * 30)
 model.save(MODEL_SAVE_PATH)
 print(f"Training complete! Final model saved to '{MODEL_SAVE_PATH}'.")
 
+# Temporary dataframes ko saaf karna (optional, memory bachane ke liye)
+del train_df, val_df, test_df, df
+print("Cleanup complete.")
