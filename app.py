@@ -10,6 +10,10 @@ MODEL_PATH = 'wheat_disease_model.h5'
 LABELS_PATH = 'labels.json'
 IMAGE_SIZE = (224, 224)
 
+# Confidence thresholds
+CONF_HIGH = 0.70  # 70%
+CONF_MEDIUM = 0.50 # 50%
+
 # --- Helper Functions ---
 
 # Load the AI model (cached so it only loads once)
@@ -45,29 +49,30 @@ def preprocess_image(image):
 # Layer 2: Simulate Environmental Risk (Improved for Demo)
 def simulate_environmental_risk(disease_name):
     # This function simulates the environmental risk.
-    # We will make it *predictable* for a good demo.
     
     # Let's create a 50/50 chance for High or Low risk
     if random.choice([True, False]):
-        # Simulate HIGH RISK conditions (Good for Fungal Disease)
+        # Simulate HIGH RISK conditions
         temp = f"{random.randint(12, 22)}°C"
         humidity = f"{random.randint(75, 95)}%"
         risk_score = random.uniform(0.8, 0.99)
         risk_level = "High"
     else:
-        # Simulate LOW RISK conditions (Bad for Fungal Disease)
+        # Simulate LOW RISK conditions
         temp = f"{random.randint(25, 35)}°C"
         humidity = f"{random.randint(40, 60)}%"
         risk_score = random.uniform(0.05, 0.25)
         risk_level = "Low"
     
-    # If the visual model is "healthy", force a High Risk scenario
-    # This helps demonstrate the "PRE-SYMPTOMATIC ALERT"
+    # --- DEMO-ONLY LOGIC ---
+    # To demonstrate our innovation, we will FORCE a high-risk scenario
+    # every time a 'healthy' leaf is uploaded.
     if disease_name == 'healthy':
         temp = f"{random.randint(12, 22)}°C"
         humidity = f"{random.randint(75, 95)}%"
         risk_score = random.uniform(0.8, 0.99)
         risk_level = "High"
+    # --- END DEMO-ONLY LOGIC ---
 
     return {
         "temperature": temp,
@@ -82,19 +87,49 @@ def get_fusion_insight(visual_result, env_result):
     confidence = visual_result['confidence_score']
     env_risk = env_result['risk_level']
 
-    if disease != 'Healthy' and confidence > 0.6 and env_risk == 'High':
-        return "CONFIRMED HIGH-RISK", f"**Insight:** Both visual and environmental data confirm a high risk of **{disease}**. Conditions are perfect for its spread. Immediate action is recommended."
-    
-    elif disease == 'Healthy' and env_risk == 'High':
-        return "PRE-SYMPTOMATIC ALERT", f"**Insight:** No symptoms are visible, but the environmental conditions are **highly favorable** for a fungal outbreak. We recommend proactive inspection of the field."
-    
-    elif disease != 'Healthy' and confidence > 0.6 and env_risk == 'Low':
-         return "ISOLATED CASE DETECTED", f"**Insight:** Symptoms of **{disease}** detected, but weather is not favorable for a widespread outbreak. Monitor this specific area closely."
-    
-    # --- BUG FIX IS HERE ---
-    # The 'else' case now correctly identifies a healthy crop in safe conditions.
-    else: 
-        return "CROP IS HEALTHY", "**Insight:** The crop appears healthy and environmental conditions are currently safe."
+    # --- Rule 1: CONFIRMED HIGH-RISK ---
+    # Strong disease confidence + High environment risk
+    if disease != 'healthy' and confidence >= CONF_MEDIUM and env_risk == 'High':
+        return (
+            "CONFIRMED HIGH-RISK",
+            f"**Insight:** Both layers agree — Disease: **{disease}** (Confidence: {confidence:.1%}), "
+            f"and environmental risk is **High**. Immediate preventive action recommended."
+        )
+
+    # --- Rule 2: ISOLATED CASE DETECTED ---
+    # Disease found, but environment not supporting spread
+    elif disease != 'healthy' and confidence >= CONF_MEDIUM and env_risk == 'Low':
+        return (
+            "ISOLATED CASE DETECTED",
+            f"**Insight:** Disease **{disease}** detected (Confidence: {confidence:.1%}), "
+            "but environmental conditions are Low. Localized infection only — monitor closely."
+        )
+
+    # --- Rule 3: UNCERTAIN DETECTION ---
+    # Weak disease confidence, regardless of risk
+    elif disease != 'healthy' and confidence < CONF_MEDIUM:
+        return (
+            "UNCERTAIN DETECTION",
+            f"**Insight:** Possible **{disease}**, but confidence is only {confidence:.1%}. "
+            "AI is uncertain — upload a clearer image for re-analysis."
+        )
+
+    # --- Rule 4: PRE-SYMPTOMATIC ALERT ---
+    # Visually healthy but high-risk conditions
+    elif disease == 'healthy' and env_risk == 'High':
+        return (
+            "PRE-SYMPTOMATIC ALERT",
+            f"**Insight:** Crop appears healthy (Confidence: {confidence:.1%}), "
+            "but environment shows High risk. Early warning — inspect proactively."
+        )
+
+    # --- Rule 5: CROP IS HEALTHY (Default Safe Case) ---
+    else:
+        return (
+            "CROP IS HEALTHY",
+            f"**Insight:** Crop looks healthy (Confidence: {confidence:.1%}), "
+            "and conditions are safe (Low risk)."
+        )
 
 # --- Streamlit UI ---
 
@@ -112,7 +147,7 @@ if model is None or labels_map is None:
     st.stop()
 
 # File Uploader
-uploaded_file = st.file_uploader("Upload a wheat leaf image...", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader("Upload an image of a wheat leaf...", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
     # Display the uploaded image
@@ -172,6 +207,8 @@ if uploaded_file is not None:
                     st.error(f"### 🔴 {final_status}")
                 elif "ISOLATED" in final_status:
                     st.info(f"### ℹ️ {final_status}")
+                elif "UNCERTAIN" in final_status:
+                    st.info(f"### ⚠️ {final_status}") # Use a different icon
                 else:
                     st.success(f"### ✅ {final_status}")
                 
